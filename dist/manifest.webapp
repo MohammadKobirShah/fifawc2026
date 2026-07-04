@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "name": "Saoodify Player",
+  "description": "Keypad-controlled live & on-demand streaming player (DASH/MPD + HLS/M3U8) built for KaiOS.",
+  "launch_path": "/index.html",
+  "type": "web",
+  "default_locale": "en",
+  "icons": {
+    "56": "/icons/icon-112.png",
+    "112": "/icons/icon-112.png"
+  },
+  "developer": {
+    "name": "Saoodify"
+  },
+  "permissions": {}
+}
