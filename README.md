@@ -38,37 +38,63 @@ The production build is fully self-contained in `dist/index.html` (shaka-player
 
 ## 🚀 Deploy to Render
 
-### Option A — Blueprint (recommended)
+### ❗ Fixing "Application exited early"
 
-This repo includes a [`render.yaml`](./render.yaml) Blueprint.
+If your deploy log shows the build succeeding (`✓ built in …s`) and then
+**"Application exited early"**, it means your service is a **Web Service**
+whose **Start Command is `npm run build`**. `npm run build` only *builds* the
+files and exits — there is nothing left running, so Render kills the deploy.
 
-1. Push this repo to GitHub/GitLab.
-2. In the Render dashboard → **New** → **Blueprint** → select the repo.
-3. Render reads `render.yaml` and creates the static site automatically.
-4. It runs `npm ci && npm run build` and serves `./dist`.
+This app is **static** (`dist/index.html`). Choose ONE of the fixes below.
 
-**Or, with the Render CLI:**
+---
 
-```bash
-# install the CLI (macOS) — see Render docs for Windows/Linux installers
-brew tap render-oss/render-oss && brew install render
+### ✅ Fix A — Switch to a Static Site (recommended, free)
 
-# from the project root
-render blueprint deploy
-```
-
-### Option B — Manual (no config files)
-
-In the Render dashboard → **New** → **Static Site**:
+This is the correct service type for this app. In the Render dashboard open
+your service → **Settings**, change the type to **Static Site**, and set:
 
 | Setting | Value |
 |---|---|
-| **Build Command** | `npm ci && npm run build` |
+| **Build Command** | `npm install && npm run build` |
 | **Publish Directory** | `dist` |
-| **Environment** | `Node 20` |
 
-That's it — Render runs the build and serves the `dist` folder on a free
-`*.onrender.com` URL (or your custom domain).
+Static Sites have **no Start Command** — Render serves the `dist` folder
+directly. Save → trigger a manual deploy. Done.
+
+> To recreate cleanly: **New → Static Site** with Build Command
+> `npm install && npm run build` and Publish Directory `dist`.
+
+---
+
+### ✅ Fix B — Keep your Web Service (use the bundled server)
+
+This repo includes a zero-dependency static server (`server.js`) that stays
+alive forever. In your Web Service **Settings**, set:
+
+| Setting | Value |
+|---|---|
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `node server.js` |
+
+`server.js` listens on `$PORT` and serves `dist/` (with SPA fallback). Save →
+manual deploy. The log will show:
+
+```
+Saoodify Player running →  http://0.0.0.0:<PORT>
+```
+
+---
+
+### Option C — Blueprint (auto-config from render.yaml)
+
+The included [`render.yaml`](./render.yaml) already declares a **Static Site**.
+Push the repo to GitHub/GitLab, then:
+
+- Render dashboard → **New** → **Blueprint** → select the repo, **or**
+- Render CLI: `brew tap render-oss/render-oss && brew install render && render blueprint deploy`
+
+---
 
 ### Live endpoints after deploy
 
