@@ -1,0 +1,27 @@
+# Render Blueprint — Saoodify Player (KaiOS)
+# Docs: https://render.com/docs/blueprint-spec
+# Deploy with:  render blueprint deploy   (after pushing this repo to Render)
+services:
+  - type: web
+    name: saoodify-player
+    env: static
+    plan: free # static sites are free; bump to a paid plan if you like
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    # Single-page app: every route falls back to the bundled index.html
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # Sensible security + caching headers
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
