@@ -15,7 +15,7 @@ services:
     # To switch to a Web Service instead, comment the above and uncomment below:
     # env: node
     # buildCommand: npm install && npm run build
-    # startCommand: node server.js
+    # startCommand: node server.cjs
     pullRequestPreviewsEnabled: false
     # Single-page app: every unknown route falls back to index.html
     routes:
