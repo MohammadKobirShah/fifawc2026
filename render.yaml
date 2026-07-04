@@ -12,6 +12,10 @@ services:
     env: static # <-- STATIC SITE: serves ./dist, no process to keep alive
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    # To switch to a Web Service instead, comment the above and uncomment below:
+    # env: node
+    # buildCommand: npm install && npm run build
+    # startCommand: node server.js
     pullRequestPreviewsEnabled: false
     # Single-page app: every unknown route falls back to index.html
     routes:
