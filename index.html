@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FOX SPORTS (BDIX Ultimate) — OmniStream Pro Player</title>
+  
+  <!-- Shaka Player CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/shaka-player.compiled.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.3.5/controls.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #e50914;
+      --primary-hover: #ff1e27;
+      --accent: #e5a93b;
+      --bg: #060606;
+      --card-bg: rgba(20, 20, 20, 0.85);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f5f5f7;
+      --text-muted: rgba(245, 245, 247, 0.6);
+      --shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body, html {
+      background-color: #000;
+      color: var(--text);
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Embedded Player Container */
+    #player-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      overflow: hidden;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+
+    /* Custom Player Interface Overlay */
+    .player-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.9) 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    #player-container:hover .player-overlay,
+    .player-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stream-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stream-logo {
+      height: 44px;
+      max-width: 140px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    .stream-title-text {
+      font-size: 20px;
+      font-weight: 800;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+      letter-spacing: -0.3px;
+    }
+
+    /* Control Buttons */
+    .ctrl-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      transition: all 0.15s;
+    }
+
+    .ctrl-btn:hover, .ctrl-btn.focused {
+      background: rgba(255, 255, 255, 0.15);
+      transform: scale(1.1);
+    }
+
+    .ctrl-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Custom Controls Panel */
+    .bottom-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .progress-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .progress-bar-container {
+      position: relative;
+      flex: 1;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      cursor: pointer;
+      transition: height 0.15s;
+    }
+
+    .progress-bar-container:hover {
+      height: 8px;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .progress-buffered {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+      width: 0%;
+    }
+
+    .progress-knob {
+      position: absolute;
+      right: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      display: none;
+    }
+
+    .progress-bar-container:hover .progress-knob {
+      display: block;
+    }
+
+    .time-display {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      font-feature-settings: "tnum";
+    }
+
+    .controls-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .controls-left, .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    /* Volume slider */
+    .volume-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .volume-slider {
+      width: 0;
+      height: 4px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 2px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: width 0.25s ease;
+    }
+
+    .volume-container:hover .volume-slider,
+    .volume-slider.active {
+      width: 80px;
+    }
+
+    .volume-fill {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+    }
+
+    /* Stats Panel Overlay */
+    #stats-panel {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.9);
+      z-index: 100;
+      display: none;
+      box-shadow: var(--shadow);
+      pointer-events: none;
+    }
+
+    #stats-panel h3 {
+      font-size: 13px;
+      margin-bottom: 12px;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 40px;
+      margin-bottom: 6px;
+    }
+
+    .stat-val {
+      font-weight: 500;
+      color: var(--accent);
+    }
+
+    /* Quality & Audio Settings slide panel */
+    .settings-panel {
+      position: absolute;
+      top: 0;
+      right: -320px;
+      width: 320px;
+      height: 100%;
+      background: rgba(15, 15, 15, 0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-left: 1px solid var(--border);
+      z-index: 200;
+      padding: 30px 24px;
+      transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow);
+    }
+
+    .settings-panel.active {
+      right: 0;
+    }
+
+    .settings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .settings-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .settings-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .settings-item {
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+
+    .settings-item:hover, .settings-item.focused {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .settings-item.active {
+      background: rgba(229, 9, 20, 0.15);
+      border-color: var(--primary);
+      color: var(--primary-hover);
+    }
+
+    /* Live Badge */
+    .live-badge {
+      background: var(--primary);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+
+    /* Loader Splash */
+    #loader-splash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #060606;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      transition: opacity 0.5s ease;
+    }
+
+    .splash-logo {
+      width: 110px;
+      height: 110px;
+      object-fit: contain;
+      margin-bottom: 24px;
+      border-radius: 20px;
+      border: 2px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      animation: bounce 2s infinite ease-in-out;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 24px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader-text {
+      font-size: 16px;
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 6px;
+    }
+
+    .loader-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Gestures & Toast Notification */
+    .toast-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: rgba(5, 5, 5, 0.9);
+      padding: 16px 28px;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 30;
+      pointer-events: none;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .toast-indicator.active {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* TV Mode Activation Styles */
+    .tv-mode-active {
+      cursor: none;
+    }
+
+    .tv-mode-active .player-overlay {
+      background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 30%, rgba(0,0,0,0.4) 70%, rgba(0,0,0,0.9) 100%);
+    }
+
+    .tv-mode-active .progress-bar-container {
+      height: 10px !important;
+    }
+
+    .tv-mode-active .progress-knob {
+      display: block !important;
+      width: 16px;
+      height: 16px;
+      background: var(--primary);
+    }
+
+    /* Focus highlight state for D-Pad Remote Nav */
+    .focused {
+      outline: 4px solid var(--primary) !important;
+      outline-offset: 2px;
+      background: rgba(255, 255, 255, 0.15) !important;
+      transform: scale(1.08);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="player-container">
+    <video id="video-element" autoplay playsinline></video>
+
+    <!-- PRO LOADING SPLASH SCREEN WITH WORLD CUP LOGO -->
+    <div id="loader-splash">
+      <img src="https://raw.githubusercontent.com/sm-monirulislam/SM-Live-TV/main/Script/world_cup.png" class="splash-logo" alt="World Cup logo">
+      <div class="spinner"></div>
+      <div class="loader-text" id="loader-status">FOX SPORTS (BDIX Ultimate)</div>
+      <div class="loader-sub" id="loader-details">Analyzing User Agent & Engine Config...</div>
+    </div>
+
+    <!-- STYLISH DIAGNOSTIC PANEL -->
+    <div id="stats-panel">
+      <h3>Diagnostic Panel</h3>
+      <div class="stat-row"><span>Engine:</span><span class="stat-val">Shaka v4.3.5 (Pro)</span></div>
+      <div class="stat-row"><span>Resolution:</span><span class="stat-val" id="stat-res">-</span></div>
+      <div class="stat-row"><span>Current Bitrate:</span><span class="stat-val" id="stat-bitrate">-</span></div>
+      <div class="stat-row"><span>Buffer Length:</span><span class="stat-val" id="stat-buffer">-</span></div>
+      <div class="stat-row"><span>Bandwidth Est:</span><span class="stat-val" id="stat-bw">-</span></div>
+      <div class="stat-row"><span>Frame Drops:</span><span class="stat-val" id="stat-drops">-</span></div>
+    </div>
+
+    <!-- TOAST INDICATOR FOR VOLUME / GESTURES -->
+    <div class="toast-indicator" id="toast-notif">
+      <span id="toast-icon">🔊</span>
+      <span id="toast-text">Volume: 100%</span>
+    </div>
+
+    <!-- PRESET AUDIO & QUALITY SELECTION SLIDE MENU -->
+    <div class="settings-panel" id="side-settings">
+      <div class="settings-header">
+        <div class="settings-title" id="settings-panel-title">Quality Options</div>
+        <button class="ctrl-btn" onclick="toggleSettingsPanel(false)" id="close-settings-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <ul class="settings-list" id="settings-options-list">
+        <!-- Dynically populated -->
+      </ul>
+    </div>
+
+    <!-- OMNI OVERLAY INTERFACE -->
+    <div class="player-overlay active" id="ui-overlay">
+      
+      <!-- TOP STATUS BAR -->
+      <div class="top-bar">
+        <div class="stream-meta">
+          <img src="https://raw.githubusercontent.com/sm-monirulislam/SM-Live-TV/main/Script/world_cup.png" class="stream-logo" alt="logo">
+          <div class="stream-title-text" id="ui-stream-title">FOX SPORTS (BDIX Ultimate)</div>
+          <div class="live-badge">LIVE</div>
+        </div>
+        <div class="controls-right">
+          <button class="ctrl-btn" onclick="toggleStats()" title="Toggle Diagnostic Panel" id="btn-diagnostics">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M3 20v-8a2 2 0 0 1 2-2h4M15 20v-4a2 2 0 0 1 2-2h4M9 20v-4a2 2 0 0 1 2-2h4"/></svg>
+          </button>
+          
+          <!-- MANUAL LAYOUT SWITCHER BUTTON (Toggles TV/V2 modes) -->
+          <button class="ctrl-btn" onclick="handleManualLayoutToggle()" title="Toggle Layout Mode (TV/V2)" id="btn-layout">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="15" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- BOTTOM NAVIGATION BAR -->
+      <div class="bottom-bar">
+        
+        <!-- Stream Progress Timeline -->
+        <div class="progress-area">
+          <span class="time-display" id="time-current">0:00</span>
+          <div class="progress-bar-container" id="timeline-container">
+            <div class="progress-buffered" id="timeline-buffered"></div>
+            <div class="progress-fill" id="timeline-fill">
+              <div class="progress-knob"></div>
+            </div>
+          </div>
+          <span class="time-display" id="time-duration">LIVE</span>
+        </div>
+
+        <!-- Action row -->
+        <div class="controls-row">
+          <div class="controls-left">
+            <!-- Play/Pause -->
+            <button class="ctrl-btn" onclick="togglePlay()" id="btn-play">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" id="play-icon"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            
+            <!-- Quick Rewind & Fast Forward -->
+            <button class="ctrl-btn" onclick="seekRelative(-10)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+            </button>
+            <button class="ctrl-btn" onclick="seekRelative(10)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+            </button>
+
+            <!-- Volume Control -->
+            <div class="volume-container">
+              <button class="ctrl-btn" onclick="toggleMute()" id="btn-mute">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="mute-icon">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 10 0 0 1 0 7.07"></path>
+                </svg>
+              </button>
+              <div class="volume-slider" id="vol-slider">
+                <div class="volume-fill" id="vol-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="controls-right">
+            <!-- Quality Gear Icon -->
+            <button class="ctrl-btn" onclick="openMenu('quality')" id="btn-quality">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+
+            <!-- Audio Selector -->
+            <button class="ctrl-btn" onclick="openMenu('audio')" id="btn-audio" title="Select Audio Track">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 19v4M8 23h8"/></svg>
+            </button>
+
+            <!-- Fullscreen -->
+            <button class="ctrl-btn" onclick="toggleFullscreen()" id="btn-fullscreen">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="full-icon"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // PRESET DEFAULT STREAMS FOR ZERO CONFIG EMBEDDING
+    const PRESET = {
+      url: "https://live.kobir26.qzz.io/cenc.mpd",
+      key: "f6564ec2aee819046328a0e153be574d:ff46a8a1031eb27ef22576a077c98ab7",
+      title: "FOX SPORTS (BDIX Ultimate)",
+      logo: "https://raw.githubusercontent.com/sm-monirulislam/SM-Live-TV/main/Script/world_cup.png"
+    };
+
+    let player;
+    let video;
+    let isTvMode = false;
+    let statsInterval;
+    let currentMenuType = 'quality';
+    let overlayTimeout;
+
+    // Detect if device is a Smart TV, Android TV, Tizen, webOS, Apple TV, Xbox, etc.
+    function detectUserAgent() {
+      const ua = navigator.userAgent.toLowerCase();
+      const tvKeywords = [
+        'smart-tv', 'smarttv', 'tizen', 'webos', 'netcast', 'appletv', 
+        'xbox', 'playstation', 'nintendo', 'androidtv', 'dtv', 'viera', 
+        'rokutv', 'roku', 'cloudtv', 'sharp-tv', 'philips-tv', 'tcl-tv'
+      ];
+      const isTV = tvKeywords.some(keyword => ua.includes(keyword));
+      return isTV ? 'tv' : 'v2';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Parse parameters from query string
+      const urlParams = new URLSearchParams(window.location.search);
+      const streamUrl = urlParams.get('url') || PRESET.url;
+      const clearkey = urlParams.get('key') || PRESET.key;
+      const title = urlParams.get('title') || PRESET.title;
+      const logo = urlParams.get('logo') || PRESET.logo;
+      
+      // Determine layout based on:
+      // 1. Explicit url query parameter: e.g. ?layout=tv
+      // 2. Previously saved manual setting in localStorage
+      // 3. Automated User Agent detection (Fall back)
+      let layout = urlParams.get('layout');
+      let isAutoDetected = false;
+
+      if (!layout) {
+        layout = localStorage.getItem('omni-layout-preference');
+      }
+
+      if (!layout) {
+        layout = detectUserAgent();
+        isAutoDetected = true;
+      }
+
+      // Update UI title and tab title
+      document.getElementById('ui-stream-title').textContent = title;
+      document.title = `${title} — OmniStream Pro`;
+
+      initPlayer(streamUrl, clearkey, layout, isAutoDetected);
+    });
+
+    async function initPlayer(manifestUrl, clearkeyParam, initialLayout, isAutoDetected) {
+      video = document.getElementById('video-element');
+      const loaderStatus = document.getElementById('loader-details');
+
+      // Polyfills
+      shaka.polyfill.installAll();
+      if (!shaka.Player.isBrowserSupported()) {
+        loaderStatus.textContent = 'Engine Error: Browser not supported!';
+        return;
+      }
+
+      player = new shaka.Player(video);
+      player.addEventListener('error', (event) => console.error('Shaka error:', event.detail));
+
+      // Handle DRM ClearKey Config
+      if (clearkeyParam) {
+        loaderStatus.textContent = 'Registering Secure ClearKey DRM licenses...';
+        const keyMap = {};
+        clearkeyParam.split(',').forEach(pair => {
+          const parts = pair.split(':');
+          if (parts.length === 2) {
+            keyMap[parts[0].trim().toLowerCase()] = parts[1].trim().toLowerCase();
+          }
+        });
+
+        player.configure({
+          drm: {
+            clearKeys: keyMap
+          }
+        });
+      }
+
+      loaderStatus.textContent = 'Connecting to Stream Host...';
+
+      // Advanced Streaming buffer parameters for maximum low-latency
+      player.configure({
+        streaming: {
+          bufferingGoal: 4,
+          rebufferingGoal: 1.5,
+          bufferBehind: 10,
+          lowLatencyMode: true
+        }
+      });
+
+      try {
+        await player.load(manifestUrl);
+        loaderStatus.textContent = 'Channel connected!';
+        
+        // Hide splash loader
+        const splash = document.getElementById('loader-splash');
+        splash.style.opacity = 0;
+        setTimeout(() => splash.style.display = 'none', 500);
+
+        // Apply Layout Mode
+        enableTVMode(initialLayout === 'tv', isAutoDetected);
+
+        setupControlListeners();
+      } catch (e) {
+        loaderStatus.textContent = `Error connecting stream: ${e.message || e.code}`;
+        console.error(e);
+      }
+    }
+
+    function setupControlListeners() {
+      const container = document.getElementById('player-container');
+      const overlay = document.getElementById('ui-overlay');
+
+      function showOverlay() {
+        overlay.classList.add('active');
+        container.style.cursor = 'default';
+        clearTimeout(overlayTimeout);
+        if (!isTvMode) {
+          overlayTimeout = setTimeout(() => {
+            overlay.classList.remove('active');
+            container.style.cursor = 'none';
+          }, 4000);
+        }
+      }
+
+      container.addEventListener('mousemove', showOverlay);
+      container.addEventListener('click', showOverlay);
+      showOverlay();
+
+      // Time and Buffer update event
+      video.addEventListener('timeupdate', () => {
+        if (!player) return;
+        const current = video.currentTime;
+        const duration = video.duration || 0;
+
+        document.getElementById('time-current').textContent = formatTime(current);
+
+        if (!player.isLive() && duration > 0) {
+          const percent = (current / duration) * 100;
+          document.getElementById('timeline-fill').style.width = `${percent}%`;
+
+          // Buffered timeline
+          const buffered = video.buffered;
+          if (buffered.length > 0) {
+            const end = buffered.end(buffered.length - 1);
+            const buffPercent = (end / duration) * 100;
+            document.getElementById('timeline-buffered').style.width = `${buffPercent}%`;
+          }
+        } else {
+          document.getElementById('timeline-fill').style.width = '100%';
+        }
+      });
+
+      // Seek on timeline click
+      document.getElementById('timeline-container').addEventListener('click', (e) => {
+        if (player.isLive()) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const pos = (e.clientX - rect.left) / rect.width;
+        video.currentTime = pos * video.duration;
+      });
+
+      // Volume slider interaction
+      const volSlider = document.getElementById('vol-slider');
+      volSlider.addEventListener('click', (e) => {
+        const rect = volSlider.getBoundingClientRect();
+        const volume = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        video.volume = volume;
+        video.muted = false;
+        document.getElementById('vol-fill').style.width = `${volume * 100}%`;
+        showToast("🔊", `Volume: ${Math.round(volume * 100)}%`);
+      });
+
+      window.addEventListener('keydown', handleTvKeys);
+    }
+
+    function togglePlay() {
+      const playIcon = document.getElementById('play-icon');
+      if (video.paused) {
+        video.play();
+        playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+        showToast("▶", "Play");
+      } else {
+        video.pause();
+        playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+        showToast("⏸", "Pause");
+      }
+    }
+
+    function seekRelative(seconds) {
+      if(player.isLive()) return;
+      video.currentTime += seconds;
+      showToast(seconds > 0 ? "⏩" : "⏪", `${seconds > 0 ? '+' : ''}${seconds}s`);
+    }
+
+    function toggleMute() {
+      const muteIcon = document.getElementById('mute-icon');
+      if (video.muted) {
+        video.muted = false;
+        muteIcon.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 10 0 0 1 0 7.07"></path>';
+        document.getElementById('vol-fill').style.width = `${video.volume * 100}%`;
+        showToast("🔊", "Unmuted");
+      } else {
+        video.muted = true;
+        muteIcon.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>';
+        document.getElementById('vol-fill').style.width = '0%';
+        showToast("🔇", "Muted");
+      }
+    }
+
+    function toggleFullscreen() {
+      const container = document.getElementById('player-container');
+      const icon = document.getElementById('full-icon');
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().then(() => {
+          icon.innerHTML = '<path d="M4 14h6v6m10-6h-6v6M4 10h6V4m10 6h-6V4"/>';
+        });
+      } else {
+        document.exitFullscreen().then(() => {
+          icon.innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>';
+        });
+      }
+    }
+
+    function toggleStats() {
+      const panel = document.getElementById('stats-panel');
+      if (panel.style.display === 'block') {
+        panel.style.display = 'none';
+        clearInterval(statsInterval);
+      } else {
+        panel.style.display = 'block';
+        updateStats();
+        statsInterval = setInterval(updateStats, 1500);
+      }
+    }
+
+    function updateStats() {
+      if(!player) return;
+      const stats = player.getStats();
+      const variant = player.getVariantTracks().find(t => t.active);
+
+      document.getElementById('stat-res').textContent = variant ? `${variant.width}x${variant.height} (${Math.round(variant.frameRate)}fps)` : 'Unknown';
+      document.getElementById('stat-bitrate').textContent = variant ? `${Math.round(variant.bandwidth / 1000)} kbps` : '-';
+      document.getElementById('stat-buffer').textContent = `${player.getBufferInfo().total.toFixed(1)}s`;
+      document.getElementById('stat-bw').textContent = `${Math.round(stats.estimatedBandwidth / 1000)} kbps`;
+      document.getElementById('stat-drops').textContent = `${stats.droppedFrames} / ${stats.decodedFrames}`;
+    }
+
+    function openMenu(type) {
+      currentMenuType = type;
+      const sidePanel = document.getElementById('side-settings');
+      const title = document.getElementById('settings-panel-title');
+      const list = document.getElementById('settings-options-list');
+      
+      list.innerHTML = '';
+      sidePanel.classList.add('active');
+
+      if (type === 'quality') {
+        title.textContent = 'Quality Options';
+        
+        // Auto option
+        const autoLi = document.createElement('li');
+        autoLi.className = `settings-item ${player.getConfiguration().abr.enabled ? 'active' : ''}`;
+        autoLi.innerHTML = `<span>Auto Stream Quality</span>`;
+        autoLi.onclick = () => {
+          player.configure({ abr: { enabled: true } });
+          toggleSettingsPanel(false);
+          showToast("⚙️", "Quality: Auto");
+        };
+        list.appendChild(autoLi);
+
+        // Quality Variants
+        const tracks = player.getVariantTracks().sort((a,b) => b.height - a.height);
+        const seenHeights = new Set();
+        tracks.forEach(track => {
+          if (seenHeights.has(track.height)) return;
+          seenHeights.add(track.height);
+
+          const li = document.createElement('li');
+          li.className = `settings-item ${track.active && !player.getConfiguration().abr.enabled ? 'active' : ''}`;
+          li.innerHTML = `<span>${track.height}p <span style="font-size:11px;color:rgba(255,255,255,0.4)">(${Math.round(track.bandwidth/1000)}kbps)</span></span>`;
+          li.onclick = () => {
+            player.configure({ abr: { enabled: false } });
+            player.selectVariantTrack(track, true);
+            toggleSettingsPanel(false);
+            showToast("⚙️", `Quality: ${track.height}p`);
+          };
+          list.appendChild(li);
+        });
+
+      } else if (type === 'audio') {
+        title.textContent = 'Audio Tracks';
+        const tracks = player.getAudioLanguagesAndRoles();
+        
+        tracks.forEach(track => {
+          const li = document.createElement('li');
+          li.className = `settings-item ${track.language === player.getConfiguration().preferredAudioLanguage ? 'active' : ''}`;
+          li.innerHTML = `<span>${track.language.toUpperCase()} (${track.role || 'Primary'})</span>`;
+          li.onclick = () => {
+            player.selectAudioLanguage(track.language);
+            toggleSettingsPanel(false);
+            showToast("🔊", `Audio: ${track.language.toUpperCase()}`);
+          };
+          list.appendChild(li);
+        });
+      }
+
+      if (isTvMode) {
+        setTimeout(() => {
+          const items = list.querySelectorAll('.settings-item');
+          if (items.length > 0) setTvFocus(items[0]);
+        }, 100);
+      }
+    }
+
+    function toggleSettingsPanel(show) {
+      const panel = document.getElementById('side-settings');
+      if (show) panel.classList.add('active');
+      else panel.classList.remove('active');
+    }
+
+    // Handles manual clicks on the layout button
+    function handleManualLayoutToggle() {
+      // Toggle the mode
+      const nextMode = !isTvMode;
+      
+      // Save manual layout choice in localStorage so it persists on reload
+      localStorage.setItem('omni-layout-preference', nextMode ? 'tv' : 'v2');
+      
+      // Call enableTVMode with isAutoDetected = false since it's a manual override
+      enableTVMode(nextMode, false);
+    }
+
+    // Controls Layout activation and Toast rendering
+    function enableTVMode(enable, isAutoDetected = false) {
+      isTvMode = enable;
+      const container = document.getElementById('player-container');
+      const overlay = document.getElementById('ui-overlay');
+
+      if (isTvMode) {
+        container.classList.add('tv-mode-active');
+        overlay.classList.add('active');
+        
+        const msg = isAutoDetected ? "Smart TV Detected! TV Layout Enabled" : "TV Layout Enabled (Saved)";
+        showToast("📺", msg);
+        setTimeout(() => setTvFocus(document.getElementById('btn-play')), 100);
+      } else {
+        container.classList.remove('tv-mode-active');
+        overlay.classList.remove('active');
+        removeTvFocus();
+        
+        const msg = isAutoDetected ? "Desktop/Mobile Detected! V2 Touch Layout Enabled" : "V2 Touch Layout Enabled (Saved)";
+        showToast("📱", msg);
+      }
+    }
+
+    let toastTimeout;
+    function showToast(icon, text) {
+      const toast = document.getElementById('toast-notif');
+      document.getElementById('toast-icon').textContent = icon;
+      document.getElementById('toast-text').textContent = text;
+      toast.classList.add('active');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => toast.classList.remove('active'), 1800);
+    }
+
+    function formatTime(secs) {
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      const s = Math.floor(secs % 60);
+      return `${h > 0 ? h + ':' : ''}${m.toString().padStart(h > 0 ? 2 : 1, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // Smart TV navigation
+    let activeFocusElement = null;
+
+    function setTvFocus(element) {
+      removeTvFocus();
+      if(!element) return;
+      activeFocusElement = element;
+      element.classList.add('focused');
+      element.focus();
+    }
+
+    function removeTvFocus() {
+      if (activeFocusElement) {
+        activeFocusElement.classList.remove('focused');
+        activeFocusElement.blur();
+        activeFocusElement = null;
+      }
+    }
+
+    function handleTvKeys(e) {
+      if (!isTvMode) return;
+
+      const focusableSelectors = [
+        '#ui-overlay .ctrl-btn',
+        '.settings-panel.active .settings-item',
+        '.settings-panel.active #close-settings-btn'
+      ];
+      
+      const elements = Array.from(document.querySelectorAll(focusableSelectors.join(',')))
+                           .filter(el => el.offsetWidth > 0 && el.offsetHeight > 0);
+
+      if (elements.length === 0) return;
+
+      let index = elements.indexOf(activeFocusElement);
+
+      switch (e.key) {
+        case 'ArrowRight':
+          e.preventDefault();
+          if (!sidePanelActive()) {
+            index = (index + 1) % elements.length;
+            setTvFocus(elements[index]);
+          }
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          if (!sidePanelActive()) {
+            index = (index - 1 + elements.length) % elements.length;
+            setTvFocus(elements[index]);
+          }
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          if (sidePanelActive()) {
+            index = (index + 1) % elements.length;
+            setTvFocus(elements[index]);
+          }
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          if (sidePanelActive()) {
+            index = (index - 1 + elements.length) % elements.length;
+            setTvFocus(elements[index]);
+          }
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (activeFocusElement) activeFocusElement.click();
+          break;
+        case 'Backspace':
+        case 'Escape':
+          e.preventDefault();
+          if (sidePanelActive()) {
+            toggleSettingsPanel(false);
+            setTvFocus(document.getElementById('btn-quality'));
+          }
+          break;
+      }
+    }
+
+    function sidePanelActive() {
+      return document.getElementById('side-settings').classList.contains('active');
+    }
+  </script>
+</body>
+</html>
